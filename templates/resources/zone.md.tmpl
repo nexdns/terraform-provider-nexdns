@@ -1,0 +1,46 @@
+---
+page_title: "{{.Name}} {{.Type}} - {{.ProviderName}}"
+subcategory: ""
+description: |-
+{{ .Description | plainmarkdown | trimspace | prefixlines "  " }}
+---
+
+# {{.Name}} ({{.Type}})
+
+{{ .Description | trimspace }}
+
+## Example Usage
+
+{{ tffile .ExampleFile }}
+
+## Moving a zone between nameserver groups
+
+Changing `ns_group` is an update, not a replacement: the zone keeps its
+identifier and every record in it, and `nameservers` is refreshed with the
+hostnames of the new group. Delegate the domain to those at your registrar
+after the apply.
+
+Every other attribute forces replacement, so changing a zone's `name`, `type` or
+`master_ip` destroys the zone – with all of its records, including the ones
+Terraform does not manage – and creates a new one. Read those plans before
+approving them.
+
+## Names as the platform stores them
+
+Zone names are stored lower-cased, without a trailing dot, and in punycode for
+an internationalised domain. A configuration that spells the same name any other
+way is kept as written, so `Example.com` or `пример.рф` does not turn into
+permanent drift.
+
+A zone deleted outside Terraform drops out of state on the next refresh and is
+planned for recreation rather than making the whole configuration unplannable.
+
+{{ .SchemaMarkdown | trimspace }}
+
+{{ if .HasImport -}}
+## Import
+
+Import is supported using the following syntax:
+
+{{ codefile "shell" .ImportFile }}
+{{- end }}

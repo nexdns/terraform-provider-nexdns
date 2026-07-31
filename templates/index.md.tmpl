@@ -1,0 +1,59 @@
+---
+page_title: "Provider: NexDNS"
+subcategory: ""
+description: |-
+{{ .Description | plainmarkdown | trimspace | prefixlines "  " }}
+---
+
+# NexDNS Provider
+
+The NexDNS provider manages DNS zones, the records inside them and DNSSEC
+signing on [NexDNS](https://nexdns.tech) through its REST API. DNS becomes part
+of the same plan as the servers it points at, so a hostname is never left
+pointing at an address that no longer exists.
+
+## Requirements
+
+- Terraform 1.0 or later.
+- A [NexDNS](https://nexdns.tech) account on a plan that includes API access, and
+  an API token created under
+  [API keys](https://nexdns.tech/settings/api-keys). DNSSEC and secondary zones
+  are also part of the plan – see the [pricing page](https://nexdns.tech/pricing).
+
+## Example Usage
+
+{{ tffile .ExampleFile }}
+
+## Authentication
+
+The token is read from the provider block first and from the `NEXDNS_API_TOKEN`
+environment variable otherwise:
+
+```shell
+export NEXDNS_API_TOKEN="nxd_xxxxxxxxxxxxxxxxxxxx"
+terraform plan
+```
+
+Give the token only the scopes the configuration needs: `zones.read` and
+`zones.write` for `nexdns_zone` and `nexdns_dnssec`, `records.read` and
+`records.write` for `nexdns_record`.
+
+## Two things worth knowing before the first apply
+
+**A TTL belongs to a record set, not to a record.** Every value sharing a name
+and a type is one set with one TTL, so two `nexdns_record` resources at the same
+name and type must carry the same `ttl` – otherwise each apply resets what the
+previous one set.
+
+**Only `ns_group` changes a zone in place.** Every other attribute of
+`nexdns_zone` forces replacement, and replacing a zone deletes it with all of
+its records, including records Terraform does not manage. Moving a zone between
+nameserver groups is the one edit that keeps the zone and its contents.
+
+{{ .SchemaMarkdown | trimspace }}
+
+## Links
+
+- [Source and issues](https://github.com/nexdns/terraform-provider-nexdns)
+- [REST API reference](https://nexdns.tech/docs/api)
+- [Pricing](https://nexdns.tech/pricing)

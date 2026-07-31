@@ -1,0 +1,35 @@
+---
+page_title: "{{.Name}} {{.Type}} - {{.ProviderName}}"
+subcategory: ""
+description: |-
+{{ .Description | plainmarkdown | trimspace | prefixlines "  " }}
+---
+
+# {{.Name}} ({{.Type}})
+
+{{ .Description | trimspace }}
+
+## Example Usage
+
+{{ tffile .ExampleFile }}
+
+## Finishing the job at the registrar
+
+Signing a zone does not by itself make it validate. Take the `ds_records` this
+resource exports and publish them at the registrar of the domain, which is
+outside Terraform's reach. Until that is done the zone is signed but unvalidated,
+which is harmless; a DS record published for a zone that is no longer signed is
+not, so remove the DS at the registrar before destroying this resource.
+
+If DNSSEC is turned off outside Terraform, the resource drops out of state on
+the next refresh and the following plan enables it again.
+
+{{ .SchemaMarkdown | trimspace }}
+
+{{ if .HasImport -}}
+## Import
+
+Import is supported using the following syntax:
+
+{{ codefile "shell" .ImportFile }}
+{{- end }}

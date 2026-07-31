@@ -1,0 +1,12 @@
+# Build output
+dist/
+terraform-provider-nexdns
+
+# Terraform working files. A committed state file would contain the API token.
+.terraform/
+.terraform.lock.hcl
+*.tfstate
+*.tfstate.*
+crash.log
+
+.DS_Store
