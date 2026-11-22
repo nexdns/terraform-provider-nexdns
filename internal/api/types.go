@@ -20,8 +20,7 @@ type APIError struct {
 
 func (e *APIError) Error() string { return e.Message }
 
-// IsNotFound reports whether an error is the API's 404. Resources use it to drop
-// a deleted record or zone from state instead of failing the whole plan.
+// IsNotFound reports whether err is an API 404.
 func IsNotFound(err error) bool {
 	var apiErr *APIError
 	return errors.As(err, &apiErr) && apiErr.StatusCode == 404
@@ -51,9 +50,8 @@ type ZoneListItem struct {
 	NSGroup string `json:"ns_group"`
 }
 
-// Record mirrors a record in API responses. Type-specific values (priority,
-// weight, port, flags, tag, keytag, …) are NOT top-level keys – the API nests
-// the parsed values under Fields, while Content carries the full record value.
+// Record is a record in API responses. Type-specific values (priority,
+// weight, port, flags, tag, keytag and so on) are nested under Fields.
 type Record struct {
 	ID       string                 `json:"id"`
 	Name     string                 `json:"name"`

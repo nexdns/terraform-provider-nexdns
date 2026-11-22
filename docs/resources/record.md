@@ -3,7 +3,7 @@ page_title: "nexdns_record Resource - terraform-provider-nexdns"
 subcategory: ""
 description: |-
   Manages a single value in a DNS record set on NexDNS.
-  A record set is every value that shares a name and a type – the two A records behind one hostname are one set of two values, and each value is one nexdns_record. The TTL is a property of the set rather than of the value, so give every record in a set the same ttl; see the ttl attribute.
+  A record set is every value that shares a name and a type: the two A records behind one hostname are one set of two values, and each value is one nexdns_record. The TTL is a property of the set rather than of the value, so give every record in a set the same ttl; see the ttl attribute.
   The zone's own NS records at the apex come from its nameserver group and are not managed here.
 ---
 
@@ -11,7 +11,7 @@ description: |-
 
 Manages a single value in a DNS record set on NexDNS.
 
-A record set is every value that shares a name and a type – the two `A` records behind one hostname are one set of two values, and each value is one `nexdns_record`. The TTL is a property of the set rather than of the value, so give every record in a set the same `ttl`; see the `ttl` attribute.
+A record set is every value that shares a name and a type: the two `A` records behind one hostname are one set of two values, and each value is one `nexdns_record`. The TTL is a property of the set rather than of the value, so give every record in a set the same `ttl`; see the `ttl` attribute.
 
 The zone's own `NS` records at the apex come from its nameserver group and are not managed here.
 
@@ -87,18 +87,18 @@ resource "nexdns_record" "caa" {
 }
 ```
 
-## Content, and what does not belong in it
+## Content
 
 `content` holds the record's primary value only. Everything else the type
 carries has its own attribute:
 
 | Type | `content` | Other attributes |
 |------|-----------|------------------|
-| `A`, `AAAA` | the address | – |
-| `CNAME`, `PTR`, `ALIAS`, `DNAME`, `NS` | the target hostname | – |
+| `A`, `AAAA` | the address | |
+| `CNAME`, `PTR`, `ALIAS`, `DNAME`, `NS` | the target hostname | |
 | `MX` | the mail host | `priority` |
 | `SRV` | the target host | `priority`, `weight`, `port` |
-| `TXT` | the text, unquoted | – |
+| `TXT` | the text, unquoted | |
 | `CAA` | the issuer | `flags`, `tag` |
 | `DS` | the digest | `keytag`, `algorithm`, `digest_type` |
 | `TLSA` | the certificate association data | `usage`, `selector`, `matching_type` |
@@ -107,14 +107,14 @@ carries has its own attribute:
 
 Every value that shares a name and a type is one record set, and a set has one
 TTL. Setting `ttl` on one `nexdns_record` retimes all of them, so give every
-record in a set the same value – two resources at the same name and type with
-different TTLs will overwrite each other on every apply.
+record in a set the same value. Two resources at the same name and type with
+different TTLs overwrite each other on every apply.
 
 ## Ids change with content
 
 A record's id is derived from its content, so editing `content` gives the record
-a new id. That is expected, and it is an update rather than a replacement: the
-new id comes back in the same apply.
+a new id. This is an update, not a replacement: the new id comes back in the
+same apply.
 
 Record names are stored lower-cased, and in punycode for an internationalised
 label. A configuration that spells the same name any other way is kept as
@@ -126,7 +126,7 @@ out of state on the next refresh and is planned for recreation.
 
 ### Required
 
-- `content` (String) The record's primary value, and only that value: the address for `A` and `AAAA`, the target hostname for `CNAME`, `NS`, `PTR`, `ALIAS`, `DNAME`, `MX` and `SRV`, the text for `TXT` (unquoted – the quoting is applied for you), the issuer for `CAA`, the digest for `DS`, the certificate association data for `TLSA`. Everything else a record type carries goes in its own attribute, never inside `content`: an `MX` is `content = "mail.example.com"` with `priority = 10`, not `content = "10 mail.example.com"`.
+- `content` (String) The record's primary value, and only that value: the address for `A` and `AAAA`, the target hostname for `CNAME`, `NS`, `PTR`, `ALIAS`, `DNAME`, `MX` and `SRV`, the text for `TXT` (unquoted; the quoting is applied for you), the issuer for `CAA`, the digest for `DS`, the certificate association data for `TLSA`. Everything else a record type carries goes in its own attribute, never inside `content`: an `MX` is `content = "mail.example.com"` with `priority = 10`, not `content = "10 mail.example.com"`.
 - `type` (String) Record type: `A`, `AAAA`, `CNAME`, `MX`, `TXT`, `NS`, `SRV`, `CAA`, `PTR`, `ALIAS`, `DNAME`, `DS` or `TLSA`. Changing it forces a new record.
 - `zone_id` (String) Identifier of the zone that holds the record, as returned by `nexdns_zone.<name>.id` or the `nexdns_zone` data source. Changing it forces a new record.
 
@@ -137,18 +137,18 @@ out of state on the next refresh and is planned for recreation.
 - `flags` (Number) Flags octet of a `CAA` record; `0` for an ordinary, non-critical property.
 - `keytag` (Number) Key tag of the DNSKEY a `DS` record points at.
 - `matching_type` (Number) Matching type of a `TLSA` record, for example `1` for SHA-256.
-- `name` (String) Record name relative to the zone – `www`, `_dmarc`, or `@` for the zone apex. Defaults to the apex. Labels are stored lower-cased, and in punycode for an internationalised name; a configuration that spells the same name differently is kept as written rather than reported as drift.
+- `name` (String) Record name relative to the zone, such as `www`, `_dmarc`, or `@` for the zone apex. Defaults to the apex. Labels are stored lower-cased, and in punycode for an internationalised name; a configuration that spells the same name differently is kept as written rather than reported as drift.
 - `port` (Number) TCP or UDP port the service of an `SRV` record listens on.
 - `priority` (Number) Preference of an `MX` record, or priority of an `SRV` record. Lower is preferred. An `MX` record left without one is stored with priority 10.
 - `selector` (Number) Selector field of a `TLSA` record: `0` matches the full certificate, `1` the subject public key.
-- `tag` (String) Property a `CAA` record sets – `issue`, `issuewild` or `iodef`. Defaults to `issue`.
-- `ttl` (Number) Time to live, in seconds. A TTL belongs to the record set, not to the single value: setting it here retimes every record that shares this record's `name` and `type`. Give every record in a set the same `ttl`, or they will take turns changing it on each apply. Left unset, an existing set keeps its TTL, a new set gets the platform default, and the effective value is read back into state.
+- `tag` (String) Property a `CAA` record sets: `issue`, `issuewild` or `iodef`. Defaults to `issue`.
+- `ttl` (Number) Time to live, in seconds. A TTL belongs to the record set, not to the single value: setting it here retimes every record that shares this record's `name` and `type`. Give every record in a set the same `ttl`, or each apply will reset it. Left unset, an existing set keeps its TTL, a new set gets the platform default, and the effective value is read back into state.
 - `usage` (Number) Certificate usage field of a `TLSA` record.
 - `weight` (Number) Relative weight of an `SRV` record among targets of equal priority.
 
 ### Read-Only
 
-- `id` (String) Identifier of the record. It is derived from the record's content, so editing `content` gives the record a new id – expected, and not a replacement.
+- `id` (String) Identifier of the record. It is derived from the record's content, so editing `content` gives the record a new id. This is an update, not a replacement.
 
 ## Import
 

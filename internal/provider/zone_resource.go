@@ -43,7 +43,7 @@ func (r *ZoneResource) Schema(_ context.Context, _ resource.SchemaRequest, resp 
 	resp.Schema = schema.Schema{
 		MarkdownDescription: "Manages a DNS zone on NexDNS.\n\n" +
 			"`ns_group` is the one attribute that changes in place. Every other attribute forces a new zone, " +
-			"which deletes the zone together with all of its records – including records Terraform does not manage.",
+			"which deletes the zone together with all of its records, including records Terraform does not manage.",
 		Attributes: map[string]schema.Attribute{
 			"id": schema.StringAttribute{
 				MarkdownDescription: "Identifier of the zone, assigned by the platform. Pass it as `zone_id` to " +
@@ -66,21 +66,17 @@ func (r *ZoneResource) Schema(_ context.Context, _ resource.SchemaRequest, resp 
 			"type": schema.StringAttribute{
 				MarkdownDescription: "`master` for a zone whose records are managed here, or `slave` for a " +
 					"secondary zone that transfers from your own primary server at `master_ip`. Defaults to " +
-					"`master`. Secondary zones require a plan that includes them – see the " +
-					"[pricing page](https://nexdns.tech/pricing). Changing this forces a new zone.",
+					"`master`. Secondary zones require a plan that includes them (see the " +
+					"[pricing page](https://nexdns.tech/pricing)). Changing this forces a new zone.",
 				Optional: true,
 				Computed: true,
 				PlanModifiers: []planmodifier.String{
 					stringplanmodifier.RequiresReplace(),
 				},
 			},
-			// Optional and Computed: the API assigns the account's default group
-			// when the config omits one and returns it, so the attribute must be
-			// able to take a value the plan did not set.
-			//
-			// Deliberately NOT RequiresReplace: the API moves a zone between
-			// groups in place, and replacement would mean deleting the zone and
-			// every record in it, including records Terraform does not manage.
+			// Optional+Computed: the API assigns the default group when it is omitted.
+			// No RequiresReplace: a zone moves between groups in place, and replacing it
+			// would delete all of its records.
 			"ns_group": schema.StringAttribute{
 				MarkdownDescription: "Slug of the nameserver group that serves the zone. Omit it to use the " +
 					"default group on your account. The valid values are the groups available to your account, " +
@@ -169,8 +165,7 @@ func (r *ZoneResource) Read(ctx context.Context, req resource.ReadRequest, resp 
 		return
 	}
 
-	// A zone deleted outside Terraform drops out of state so the next plan can
-	// recreate it, rather than making the configuration unplannable.
+	// Deleted outside Terraform: drop it from state so the next plan recreates it.
 	if _, err := r.client.GetZone(data.ID.ValueString()); err != nil && api.IsNotFound(err) {
 		resp.State.RemoveResource(ctx)
 		return
@@ -242,9 +237,7 @@ func (r *ZoneResource) readZoneIntoModel(id string, data *ZoneResourceModel, dia
 
 	data.ID = types.StringValue(zone.ID)
 	// The API lowercases the name, drops the trailing dot and stores IDNs as
-	// punycode. Writing that back over a configuration that spelled the name
-	// differently ends the apply with "inconsistent result", so an equivalent
-	// spelling is kept.
+	// punycode; keep an equivalent configured spelling.
 	data.Name = types.StringValue(preserveConfigured(data.Name.ValueString(), zone.Name))
 	data.Type = types.StringValue(zone.Type)
 	data.Status = types.StringValue(zone.Status)

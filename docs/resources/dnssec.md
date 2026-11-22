@@ -3,17 +3,17 @@ page_title: "nexdns_dnssec Resource - terraform-provider-nexdns"
 subcategory: ""
 description: |-
   Signs a zone with DNSSEC. Creating the resource enables signing, destroying it disables signing.
-  Keys are held by the platform, so the resource has nothing to update: it carries no editable attribute, and changing zone_id replaces it. Requires a plan that includes DNSSEC – see the pricing page https://nexdns.tech/pricing.
-  Enabling signing is only half of the job: the chain of trust is complete once the ds_records this resource exports are published at the domain's registrar, which Terraform cannot do for you.
+  Keys are held by the platform, so the resource has nothing to update: it carries no editable attribute, and changing zone_id replaces it. Requires a plan that includes DNSSEC (see the pricing page https://nexdns.tech/pricing).
+  The chain of trust is complete once the ds_records this resource exports are published at the domain's registrar. Terraform does not do that step.
 ---
 
 # nexdns_dnssec (Resource)
 
 Signs a zone with DNSSEC. Creating the resource enables signing, destroying it disables signing.
 
-Keys are held by the platform, so the resource has nothing to update: it carries no editable attribute, and changing `zone_id` replaces it. Requires a plan that includes DNSSEC – see the [pricing page](https://nexdns.tech/pricing).
+Keys are held by the platform, so the resource has nothing to update: it carries no editable attribute, and changing `zone_id` replaces it. Requires a plan that includes DNSSEC (see the [pricing page](https://nexdns.tech/pricing)).
 
-Enabling signing is only half of the job: the chain of trust is complete once the `ds_records` this resource exports are published at the domain's registrar, which Terraform cannot do for you.
+The chain of trust is complete once the `ds_records` this resource exports are published at the domain's registrar. Terraform does not do that step.
 
 ## Example Usage
 
@@ -33,13 +33,12 @@ output "ds_records" {
 }
 ```
 
-## Finishing the job at the registrar
+## DS records at the registrar
 
-Signing a zone does not by itself make it validate. Take the `ds_records` this
-resource exports and publish them at the registrar of the domain, which is
-outside Terraform's reach. Until that is done the zone is signed but unvalidated,
-which is harmless; a DS record published for a zone that is no longer signed is
-not, so remove the DS at the registrar before destroying this resource.
+Publish the `ds_records` this resource exports at the domain's registrar; until
+then the zone is signed but not validated. Remove the DS records at the
+registrar before destroying this resource: a DS record for a zone that is no
+longer signed makes validating resolvers reject the domain.
 
 If DNSSEC is turned off outside Terraform, the resource drops out of state on
 the next refresh and the following plan enables it again.

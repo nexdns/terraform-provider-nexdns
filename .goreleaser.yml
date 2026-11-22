@@ -1,6 +1,6 @@
 # Release layout required by the Terraform Registry: per-platform zips, a
 # SHA256SUMS file, a detached GPG signature over it, and the registry manifest
-# alongside. The Registry rejects a release that is missing any of them.
+# alongside.
 version: 2
 
 project_name: terraform-provider-nexdns

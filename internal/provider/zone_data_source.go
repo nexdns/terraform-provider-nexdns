@@ -84,14 +84,12 @@ func (d *ZoneDataSource) Read(ctx context.Context, req datasource.ReadRequest, r
 		return
 	}
 
-	// Find zone by name
 	zoneItem, err := d.client.GetZoneByName(data.Name.ValueString())
 	if err != nil {
 		resp.Diagnostics.AddError("Zone not found", err.Error())
 		return
 	}
 
-	// Get full zone details
 	zone, err := d.client.GetZone(zoneItem.ID)
 	if err != nil {
 		resp.Diagnostics.AddError("Failed to read zone", err.Error())

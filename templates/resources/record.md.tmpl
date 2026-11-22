@@ -13,18 +13,18 @@ description: |-
 
 {{ tffile .ExampleFile }}
 
-## Content, and what does not belong in it
+## Content
 
 `content` holds the record's primary value only. Everything else the type
 carries has its own attribute:
 
 | Type | `content` | Other attributes |
 |------|-----------|------------------|
-| `A`, `AAAA` | the address | – |
-| `CNAME`, `PTR`, `ALIAS`, `DNAME`, `NS` | the target hostname | – |
+| `A`, `AAAA` | the address | |
+| `CNAME`, `PTR`, `ALIAS`, `DNAME`, `NS` | the target hostname | |
 | `MX` | the mail host | `priority` |
 | `SRV` | the target host | `priority`, `weight`, `port` |
-| `TXT` | the text, unquoted | – |
+| `TXT` | the text, unquoted | |
 | `CAA` | the issuer | `flags`, `tag` |
 | `DS` | the digest | `keytag`, `algorithm`, `digest_type` |
 | `TLSA` | the certificate association data | `usage`, `selector`, `matching_type` |
@@ -33,14 +33,14 @@ carries has its own attribute:
 
 Every value that shares a name and a type is one record set, and a set has one
 TTL. Setting `ttl` on one `nexdns_record` retimes all of them, so give every
-record in a set the same value – two resources at the same name and type with
-different TTLs will overwrite each other on every apply.
+record in a set the same value. Two resources at the same name and type with
+different TTLs overwrite each other on every apply.
 
 ## Ids change with content
 
 A record's id is derived from its content, so editing `content` gives the record
-a new id. That is expected, and it is an update rather than a replacement: the
-new id comes back in the same apply.
+a new id. This is an update, not a replacement: the new id comes back in the
+same apply.
 
 Record names are stored lower-cased, and in punycode for an internationalised
 label. A configuration that spells the same name any other way is kept as

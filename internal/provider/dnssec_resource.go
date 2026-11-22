@@ -37,10 +37,10 @@ func (r *DNSSECResource) Schema(_ context.Context, _ resource.SchemaRequest, res
 		MarkdownDescription: "Signs a zone with DNSSEC. Creating the resource enables signing, destroying it " +
 			"disables signing.\n\n" +
 			"Keys are held by the platform, so the resource has nothing to update: it carries no editable " +
-			"attribute, and changing `zone_id` replaces it. Requires a plan that includes DNSSEC – see the " +
-			"[pricing page](https://nexdns.tech/pricing).\n\n" +
-			"Enabling signing is only half of the job: the chain of trust is complete once the `ds_records` this " +
-			"resource exports are published at the domain's registrar, which Terraform cannot do for you.",
+			"attribute, and changing `zone_id` replaces it. Requires a plan that includes DNSSEC (see the " +
+			"[pricing page](https://nexdns.tech/pricing)).\n\n" +
+			"The chain of trust is complete once the `ds_records` this resource exports are published at the " +
+			"domain's registrar. Terraform does not do that step.",
 		Attributes: map[string]schema.Attribute{
 			"zone_id": schema.StringAttribute{
 				MarkdownDescription: "Identifier of the zone to sign, as returned by `nexdns_zone.<name>.id` or " +

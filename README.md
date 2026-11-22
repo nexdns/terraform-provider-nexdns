@@ -5,22 +5,15 @@
 [![License](https://img.shields.io/github/license/nexdns/terraform-provider-nexdns)](LICENSE)
 
 Manage DNS zones, records and DNSSEC signing on [NexDNS](https://nexdns.tech)
-from Terraform. DNS lives in the same plan as the infrastructure it points at, so
-a hostname is never left pointing at an address that no longer exists, and the
-zone in production is the zone in the repository.
-
-Built for teams that already describe their infrastructure as code: the address a
-server gets on creation is the address its `A` record gets in the same apply, and
-`terraform destroy` takes the records with it.
+from Terraform, in the same plan as the infrastructure the records point at.
 
 ## Requirements
 
 - Terraform 1.0 or later
 - A NexDNS account on a plan that includes API access, and an API token created
   under [API keys](https://nexdns.tech/settings/api-keys). DNSSEC and secondary
-  zones are part of the plan too – the [pricing page](https://nexdns.tech/pricing)
-  lists which plans include what
-- Go 1.25 or later, to build from source rather than install from the Registry
+  zones depend on the plan; see the [pricing page](https://nexdns.tech/pricing)
+- Go 1.26 or later, to build from source
 
 ## Installation
 
@@ -79,8 +72,7 @@ for `nexdns_zone` and `nexdns_dnssec`, `records.read` and `records.write` for
 
 ## Quickstart
 
-A zone, the records in it, and a signed delegation – the whole thing in one
-apply:
+A zone, its records and DNSSEC in one apply:
 
 ```hcl
 terraform {
@@ -167,9 +159,9 @@ your account, listed in the control panel and returned by the API.
 **`ns_group` is the only attribute that changes in place.** Moving a zone to
 another group keeps the zone, its identifier and all of its records, and
 refreshes `nameservers`; update the delegation at your registrar afterwards.
-Every other attribute – `name`, `type`, `master_ip` – forces replacement, and
+Every other attribute (`name`, `type`, `master_ip`) forces replacement, and
 replacing a zone deletes it together with every record in it, including records
-Terraform does not manage. Read those plans before approving them.
+Terraform does not manage.
 
 A secondary zone is transferred from your own primary server rather than edited
 here:
@@ -192,11 +184,11 @@ the type needs has its own attribute:
 
 | Type | `content` | Other attributes |
 |------|-----------|------------------|
-| `A`, `AAAA` | the address | – |
-| `CNAME`, `PTR`, `ALIAS`, `DNAME`, `NS` | the target hostname | – |
+| `A`, `AAAA` | the address | |
+| `CNAME`, `PTR`, `ALIAS`, `DNAME`, `NS` | the target hostname | |
 | `MX` | the mail host | `priority` |
 | `SRV` | the target host | `priority`, `weight`, `port` |
-| `TXT` | the text, unquoted | – |
+| `TXT` | the text, unquoted | |
 | `CAA` | the issuer | `flags`, `tag` |
 | `DS` | the digest | `keytag`, `algorithm`, `digest_type` |
 | `TLSA` | the certificate association data | `usage`, `selector`, `matching_type` |
@@ -207,7 +199,7 @@ So an `MX` record is `content = "mail.example.com"` with `priority = 10`, never
 The zone's own `NS` records at the apex come from its nameserver group and are
 not managed here; `NS` records for a delegated subdomain are.
 
-Given the zone above, a set of values reads well with `for_each`:
+Several values at one name, with `for_each`:
 
 ```hcl
 resource "nexdns_record" "edge" {
@@ -227,8 +219,8 @@ Every value sharing a name and a type is one record set, and the TTL is a
 property of that set rather than of the single value. Setting `ttl` on one
 `nexdns_record` retimes all of them.
 
-Give every record in a set the same `ttl` – the `for_each` above does this
-naturally. Two resources at the same name and type with different TTLs will
+Give every record in a set the same `ttl`, as the `for_each` above does. Two
+resources at the same name and type with different TTLs will
 overwrite each other on every apply, and the plan will never come out empty.
 
 Left unset, an existing set keeps its TTL and a new one gets the platform
@@ -238,8 +230,7 @@ default; either way the effective value is read back into state.
 
 A record's id is derived from its content, so editing `content` gives the record
 a new id. This is an update, not a replacement: the new id comes back in the same
-apply. It matters when you address a record by id – after an edit, the old one is
-gone.
+apply, and the old id no longer exists.
 
 ### nexdns_dnssec
 
@@ -253,11 +244,10 @@ Creating the resource enables signing, destroying it disables signing. Keys are
 held by the platform, so there is nothing to update: the resource has no editable
 attribute, and changing `zone_id` replaces it.
 
-Signing is only half of the work. Publish the exported `ds_records` at the
-domain's registrar to complete the chain of trust – Terraform cannot do that
-step. In the other direction, remove the DS records at the registrar *before*
-destroying this resource: a DS pointing at a zone that is no longer signed makes
-validating resolvers refuse the whole domain.
+Publish the exported `ds_records` at the domain's registrar to complete the
+chain of trust; Terraform does not do that step. Before destroying this
+resource, remove the DS records at the registrar: a DS pointing at a zone that
+is no longer signed makes validating resolvers refuse the whole domain.
 
 ### nexdns_zone (data source)
 
@@ -284,13 +274,13 @@ lower-case, no trailing dot, punycode for an internationalised domain.
 All three resources support `terraform import`:
 
 ```shell
-# Zone – by its identifier
+# Zone, by its identifier
 terraform import nexdns_zone.example zK7mPq2R
 
-# Record – by <zone_id>/<record_id>, since a record id is unique inside its zone
+# Record, by <zone_id>/<record_id>
 terraform import nexdns_record.www zK7mPq2R/4d0f7a1b9c2e5386
 
-# DNSSEC – by the identifier of the zone it signs
+# DNSSEC, by the identifier of the zone it signs
 terraform import nexdns_dnssec.example zK7mPq2R
 ```
 
@@ -302,8 +292,7 @@ wrote when it means the same name, so `Example.com`, `example.com.` and a
 national-script domain do not turn into permanent drift.
 
 A zone or record deleted outside Terraform drops out of state on the next
-refresh, and the following plan recreates it – rather than leaving the
-configuration unplannable.
+refresh, and the following plan recreates it.
 
 ## Development
 
@@ -332,8 +321,7 @@ provider_installation {
 ```
 
 With an override in place Terraform skips `terraform init` for this provider and
-warns on every command, which is the intended signal that you are not running a
-released build.
+warns on every command.
 
 The Registry documentation in [`docs/`](docs) is generated from the schema
 descriptions in `internal/provider/` and the examples in [`examples/`](examples).
@@ -356,11 +344,11 @@ in [`CHANGELOG.md`](CHANGELOG.md) under `## [Unreleased]`.
 
 ## Related projects
 
-- [NexDNS CLI](https://github.com/nexdns/cli) – zone and record management from
+- [NexDNS CLI](https://github.com/nexdns/cli): zone and record management from
   the shell, plus declarative DNS-as-Code in YAML
-- [certbot-dns-nexdns](https://github.com/nexdns/certbot-dns-nexdns) – DNS-01
+- [certbot-dns-nexdns](https://github.com/nexdns/certbot-dns-nexdns): DNS-01
   challenges for wildcard certificates
-- [octodns-nexdns](https://github.com/nexdns/octodns-nexdns) – multi-provider
+- [octodns-nexdns](https://github.com/nexdns/octodns-nexdns): multi-provider
   DNS-as-Code with OctoDNS
 
 ## Links

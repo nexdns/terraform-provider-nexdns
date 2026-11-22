@@ -89,10 +89,7 @@ func (c *Client) do(method, path string, body interface{}, result interface{}) e
 		}
 
 		if resp.StatusCode == http.StatusTooManyRequests && attempt < maxRetries-1 {
-			// The API's window is a full minute, so a fixed short backoff always
-			// ran out before the budget refilled and a plan over a zone with more
-			// resources than the rate limit simply failed. Wait for as long as the
-			// response asks.
+			// Wait as long as the response asks: the window is a full minute.
 			if wait := retryAfter(resp); wait > 0 {
 				time.Sleep(wait)
 			} else {

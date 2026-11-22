@@ -47,10 +47,8 @@ func (c *Client) ListNSGroups() ([]NSGroup, error) {
 	return groups, nil
 }
 
-// MoveZone moves a zone into another nameserver group. This is the only
-// mutable field on a zone, and the only PATCH on the API: the new nameservers
-// are provisioned before the response and the previous ones keep answering
-// while resolvers refresh, so the zone never stops resolving.
+// MoveZone moves a zone into another nameserver group, the only change the
+// API allows on an existing zone.
 func (c *Client) MoveZone(id, nsGroup string) (*Zone, error) {
 	var zone Zone
 	err := c.do("PATCH", "/zones/"+id, MoveZoneRequest{NSGroup: nsGroup}, &zone)

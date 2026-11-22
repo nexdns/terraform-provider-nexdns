@@ -51,20 +51,15 @@ func (r *RecordResource) Metadata(_ context.Context, req resource.MetadataReques
 func (r *RecordResource) Schema(_ context.Context, _ resource.SchemaRequest, resp *resource.SchemaResponse) {
 	resp.Schema = schema.Schema{
 		MarkdownDescription: "Manages a single value in a DNS record set on NexDNS.\n\n" +
-			"A record set is every value that shares a name and a type – the two `A` records behind one hostname " +
+			"A record set is every value that shares a name and a type: the two `A` records behind one hostname " +
 			"are one set of two values, and each value is one `nexdns_record`. The TTL is a property of the set " +
 			"rather than of the value, so give every record in a set the same `ttl`; see the `ttl` attribute.\n\n" +
 			"The zone's own `NS` records at the apex come from its nameserver group and are not managed here.",
 		Attributes: map[string]schema.Attribute{
-			// No UseStateForUnknown here: a record id is derived from its content,
-			// so editing the content gives the record a new id. Pinning the id to
-			// the prior state made every content change fail the apply with
-			// "Provider produced inconsistent result after apply" even though the
-			// change had already landed. Leaving it unknown lets the id from the
-			// update response become the new state.
+			// No UseStateForUnknown: the id changes with the content.
 			"id": schema.StringAttribute{
 				MarkdownDescription: "Identifier of the record. It is derived from the record's content, so " +
-					"editing `content` gives the record a new id – expected, and not a replacement.",
+					"editing `content` gives the record a new id. This is an update, not a replacement.",
 				Computed: true,
 			},
 			"zone_id": schema.StringAttribute{
@@ -84,7 +79,7 @@ func (r *RecordResource) Schema(_ context.Context, _ resource.SchemaRequest, res
 				},
 			},
 			"name": schema.StringAttribute{
-				MarkdownDescription: "Record name relative to the zone – `www`, `_dmarc`, or `@` for the zone " +
+				MarkdownDescription: "Record name relative to the zone, such as `www`, `_dmarc`, or `@` for the zone " +
 					"apex. Defaults to the apex. Labels are stored lower-cased, and in punycode for an " +
 					"internationalised name; a configuration that spells the same name differently is kept as " +
 					"written rather than reported as drift.",
@@ -94,7 +89,7 @@ func (r *RecordResource) Schema(_ context.Context, _ resource.SchemaRequest, res
 			"content": schema.StringAttribute{
 				MarkdownDescription: "The record's primary value, and only that value: the address for `A` and " +
 					"`AAAA`, the target hostname for `CNAME`, `NS`, `PTR`, `ALIAS`, `DNAME`, `MX` and `SRV`, the " +
-					"text for `TXT` (unquoted – the quoting is applied for you), the issuer for `CAA`, the digest " +
+					"text for `TXT` (unquoted; the quoting is applied for you), the issuer for `CAA`, the digest " +
 					"for `DS`, the certificate association data for `TLSA`. Everything else a record type carries " +
 					"goes in its own attribute, never inside `content`: an `MX` is " +
 					"`content = \"mail.example.com\"` with `priority = 10`, not " +
@@ -104,9 +99,9 @@ func (r *RecordResource) Schema(_ context.Context, _ resource.SchemaRequest, res
 			"ttl": schema.Int64Attribute{
 				MarkdownDescription: "Time to live, in seconds. A TTL belongs to the record set, not to the " +
 					"single value: setting it here retimes every record that shares this record's `name` and " +
-					"`type`. Give every record in a set the same `ttl`, or they will take turns changing it on " +
-					"each apply. Left unset, an existing set keeps its TTL, a new set gets the platform default, " +
-					"and the effective value is read back into state.",
+					"`type`. Give every record in a set the same `ttl`, or each apply will reset it. Left " +
+					"unset, an existing set keeps its TTL, a new set gets the platform default, and the " +
+					"effective value is read back into state.",
 				Optional: true,
 				Computed: true,
 				PlanModifiers: []planmodifier.Int64{
@@ -118,7 +113,7 @@ func (r *RecordResource) Schema(_ context.Context, _ resource.SchemaRequest, res
 			"weight": optionalComputedInt64("Relative weight of an `SRV` record among targets of equal priority."),
 			"port":   optionalComputedInt64("TCP or UDP port the service of an `SRV` record listens on."),
 			"flags":  optionalComputedInt64("Flags octet of a `CAA` record; `0` for an ordinary, non-critical property."),
-			"tag": optionalComputedString("Property a `CAA` record sets – `issue`, `issuewild` or `iodef`. " +
+			"tag": optionalComputedString("Property a `CAA` record sets: `issue`, `issuewild` or `iodef`. " +
 				"Defaults to `issue`."),
 			"keytag":      optionalComputedInt64("Key tag of the DNSKEY a `DS` record points at."),
 			"algorithm":   optionalComputedInt64("DNSSEC algorithm number of the key a `DS` record points at."),
@@ -131,10 +126,9 @@ func (r *RecordResource) Schema(_ context.Context, _ resource.SchemaRequest, res
 	}
 }
 
-// Type-specific record attributes are Optional+Computed: the user may set them,
-// but when omitted the API fills in a default (e.g. MX priority 10) that the
-// provider reads back from the response "fields" object. UseStateForUnknown keeps
-// the stored value stable across plans so unchanged records don't show drift.
+// Type-specific attributes are Optional+Computed: when omitted, the API's
+// default is read back from "fields". UseStateForUnknown keeps it stable
+// across plans.
 func optionalComputedInt64(desc string) schema.Int64Attribute {
 	return schema.Int64Attribute{
 		MarkdownDescription: desc,
@@ -191,10 +185,7 @@ func (r *RecordResource) Read(ctx context.Context, req resource.ReadRequest, res
 
 	record, err := r.client.GetRecord(data.ZoneID.ValueString(), data.ID.ValueString())
 	if err != nil {
-		// A record that is gone is not an error: dropping it from state lets
-		// Terraform plan its recreation. Failing here instead left the whole
-		// configuration unplannable – and undestroyable – until the user ran
-		// `terraform state rm` by hand.
+		// Deleted outside Terraform: drop it from state so the next plan recreates it.
 		if api.IsNotFound(err) {
 			resp.State.RemoveResource(ctx)
 			return
@@ -214,8 +205,7 @@ func (r *RecordResource) Update(ctx context.Context, req resource.UpdateRequest,
 		return
 	}
 
-	// The id is content-derived, so the planned value is unknown whenever the
-	// content changes. The record to address is the one currently in state.
+	// The id changes with the content, so use the id in state.
 	var state RecordResourceModel
 	resp.Diagnostics.Append(req.State.Get(ctx, &state)...)
 	if resp.Diagnostics.HasError() {
@@ -329,10 +319,8 @@ func int64PtrIfSet(v types.Int64) *int {
 	return &n
 }
 
-// recordToModel maps an API record back into the Terraform state model. The API
-// response carries type-specific values inside record.Fields (never as top-level
-// keys), and Content holds the full record value; this reconstructs the discrete
-// attributes and the primary content value to match the user's configuration.
+// recordToModel maps an API record to the state model, rebuilding the
+// type-specific attributes from record.Fields.
 func (r *RecordResource) recordToModel(record *api.Record, data *RecordResourceModel) {
 	data.ID = types.StringValue(record.ID)
 	data.Name = types.StringValue(preserveConfigured(data.Name.ValueString(), record.Name))
@@ -390,15 +378,9 @@ func (r *RecordResource) recordToModel(record *api.Record, data *RecordResourceM
 		setInt(&data.MatchingType, "matching_type")
 	}
 
-	// The backend lowercases hex rdata (DS and TLSA digests). Writing its casing
-	// back over a configuration that used upper case fails the apply with
-	// "inconsistent result", so the configured spelling is kept when the two
-	// differ only in case – the record itself is identical either way.
-	//
-	// The same applies to the trailing dot stripped above: a hostname target is
-	// the same name with or without it, and writing the stripped form back over
-	// a configuration that spelled the FQDN out ("mail.example.com.", which is
-	// what the API itself returns) failed every apply.
+	// The API lowercases hex rdata (DS and TLSA digests) and drops the trailing
+	// dot from hostnames. Keep the configured spelling when it is the same
+	// value, or Terraform reports an inconsistent result after apply.
 	if !data.Content.IsNull() && !data.Content.IsUnknown() {
 		if planned := data.Content.ValueString(); planned != content && sameName(planned, content) {
 			content = planned

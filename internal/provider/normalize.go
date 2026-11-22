@@ -6,16 +6,10 @@ import (
 	"golang.org/x/net/idna"
 )
 
-// sameName reports whether two DNS names denote the same name, ignoring the
-// spellings the platform normalises away: letter case, a trailing dot, and the
-// Unicode form of an internationalised name.
-//
-// The API stores a name lowercased, without the trailing dot and in its ASCII
-// (punycode) form. Terraform, meanwhile, requires that what a resource writes to
-// state equals what the plan said, so writing the normalised form back over a
-// configuration that spelled the name any other way ends the apply with
-// "Provider produced inconsistent result after apply" - after the change has
-// already been made on the server, which is the worst moment to fail.
+// sameName reports whether two DNS names are the same, ignoring case, a
+// trailing dot and IDN form. The API stores names lowercased, without the
+// dot and in punycode, and Terraform fails the apply when state differs from
+// the configured value.
 func sameName(configured, returned string) bool {
 	configured = strings.TrimSuffix(configured, ".")
 	returned = strings.TrimSuffix(returned, ".")
@@ -24,9 +18,7 @@ func sameName(configured, returned string) bool {
 		return true
 	}
 
-	// idna.ToASCII is deliberately the lookup profile's lenient sibling: a
-	// configuration that already holds punycode must compare equal to itself,
-	// and a name that will not convert is simply not equivalent.
+	// ToASCII, not the Lookup profile, so punycode input compares equal to itself.
 	ascii, err := idna.ToASCII(configured)
 	if err != nil {
 		return false
@@ -35,12 +27,9 @@ func sameName(configured, returned string) bool {
 	return strings.EqualFold(ascii, returned)
 }
 
-// preserveConfigured returns the spelling the practitioner wrote when it denotes
-// the same name the API returned, and the API's own value otherwise (a genuine
-// change made elsewhere, which Terraform should show as drift).
-//
-// Pass the value currently in the model - on create that is the configuration,
-// on refresh the prior state, and both are spellings the practitioner chose.
+// preserveConfigured returns the configured spelling when it names the same
+// name as the API value, and the API value otherwise, so a real change shows
+// as drift.
 func preserveConfigured(configured, returned string) string {
 	if configured != "" && configured != returned && sameName(configured, returned) {
 		return configured

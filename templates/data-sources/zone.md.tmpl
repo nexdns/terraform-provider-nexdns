@@ -13,11 +13,11 @@ description: |-
 
 {{ tffile .ExampleFile }}
 
-## Looking a zone up
+## Lookup
 
 The lookup matches the stored name exactly, so give the domain the way the
 platform holds it: lower-case, without a trailing dot, and in punycode for an
 internationalised domain. A name that matches no zone on the account is an
-error, not an empty result.
+error.
 
 {{ .SchemaMarkdown | trimspace }}

@@ -13,13 +13,12 @@ description: |-
 
 {{ tffile .ExampleFile }}
 
-## Finishing the job at the registrar
+## DS records at the registrar
 
-Signing a zone does not by itself make it validate. Take the `ds_records` this
-resource exports and publish them at the registrar of the domain, which is
-outside Terraform's reach. Until that is done the zone is signed but unvalidated,
-which is harmless; a DS record published for a zone that is no longer signed is
-not, so remove the DS at the registrar before destroying this resource.
+Publish the `ds_records` this resource exports at the domain's registrar; until
+then the zone is signed but not validated. Remove the DS records at the
+registrar before destroying this resource: a DS record for a zone that is no
+longer signed makes validating resolvers reject the domain.
 
 If DNSSEC is turned off outside Terraform, the resource drops out of state on
 the next refresh and the following plan enables it again.

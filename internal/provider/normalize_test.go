@@ -13,8 +13,8 @@ func TestSameName(t *testing.T) {
 		{"case only", "Example.COM", "example.com", true},
 		{"trailing dot", "example.com.", "example.com", true},
 		{"case and dot", "Example.Com.", "example.com", true},
-		{"idn to punycode", "педсайт.рф", "xn--80ahcs0aoj.xn--p1ai", true},
-		{"punycode already", "xn--80ahcs0aoj.xn--p1ai", "xn--80ahcs0aoj.xn--p1ai", true},
+		{"idn to punycode", "bücher.example", "xn--bcher-kva.example", true},
+		{"punycode already", "xn--bcher-kva.example", "xn--bcher-kva.example", true},
 		{"different names", "example.com", "example.net", false},
 		{"subdomain is not the apex", "www.example.com", "example.com", false},
 		{"empty configured", "", "example.com", false},
@@ -30,10 +30,7 @@ func TestSameName(t *testing.T) {
 	}
 }
 
-// The apply fails with "Provider produced inconsistent result after apply" when
-// what is written to state differs from what the plan held - and by then the
-// change has already been made on the server. Every spelling the platform
-// normalises has to survive as the practitioner wrote it.
+// Every spelling the API normalises must survive as written.
 func TestPreserveConfiguredKeepsAnEquivalentSpelling(t *testing.T) {
 	cases := []struct {
 		configured string
@@ -42,7 +39,7 @@ func TestPreserveConfiguredKeepsAnEquivalentSpelling(t *testing.T) {
 	}{
 		{"Example.com", "example.com", "Example.com"},
 		{"example.com.", "example.com", "example.com."},
-		{"педсайт.рф", "xn--80ahcs0aoj.xn--p1ai", "педсайт.рф"},
+		{"bücher.example", "xn--bcher-kva.example", "bücher.example"},
 		// A genuine change elsewhere must still surface as drift.
 		{"example.com", "other.com", "other.com"},
 		// Nothing configured yet: take what the API says.

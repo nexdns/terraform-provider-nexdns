@@ -21,19 +21,18 @@ hostnames of the new group. Delegate the domain to those at your registrar
 after the apply.
 
 Every other attribute forces replacement, so changing a zone's `name`, `type` or
-`master_ip` destroys the zone – with all of its records, including the ones
-Terraform does not manage – and creates a new one. Read those plans before
-approving them.
+`master_ip` destroys the zone with all of its records, including the ones
+Terraform does not manage, and creates a new one.
 
 ## Names as the platform stores them
 
 Zone names are stored lower-cased, without a trailing dot, and in punycode for
 an internationalised domain. A configuration that spells the same name any other
-way is kept as written, so `Example.com` or `пример.рф` does not turn into
+way is kept as written, so `Example.com` or `Bücher.example` does not turn into
 permanent drift.
 
 A zone deleted outside Terraform drops out of state on the next refresh and is
-planned for recreation rather than making the whole configuration unplannable.
+planned for recreation.
 
 {{ .SchemaMarkdown | trimspace }}
 
